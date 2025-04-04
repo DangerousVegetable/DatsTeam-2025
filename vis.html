@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Array Visualization</title>
+    <style>
+        body { margin: 0; overflow: hidden; }
+        canvas { display: block; }
+        #info {
+            position: absolute;
+            top: 10px;
+            width: 100%;
+            text-align: center;
+            color: white;
+            font-family: Arial, sans-serif;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+    <div id="info">3D Array Visualization - Use mouse to rotate, scroll to zoom</div>
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://cdnjs.cloudflare.com/ajax/libs/three.js/0.159.0/three.module.min.js",
+                "three/addons/": "https://unpkg.com/three@0.159.0/examples/jsm/"
+            }
+        }
+    </script>
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+        import { TextGeometry } from 'three/addons/geometries/TextGeometry.js';
+        import { FontLoader } from 'three/addons/loaders/FontLoader.js';
+
+        // Initialize scene, camera, and renderer
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x111133);
+        
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.set(5, 5, 10);
+        
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+        
+        // Add orbit controls
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+        
+        // Add grid and axes helpers
+        const gridHelper = new THREE.GridHelper(10, 10);
+        scene.add(gridHelper);
+        
+        const axesHelper = new THREE.AxesHelper(5);
+        scene.add(axesHelper);
+        
+        // Add lights
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+        scene.add(ambientLight);
+        
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+        directionalLight.position.set(5, 10, 7);
+        scene.add(directionalLight);
+
+        // Input data - replace this with your array
+        const inputData = [[["а", "б", "о", "б", null], ["б", null, null, null, null], ["о", null, null, null, null], ["б", null, null, null, null], [null, null, null, null, null]], [["б", null, "л", null, null], [null, null, null, null, null], [null, null, null, null, null], [null, null, null, null, null], [null, null, null, null, null]], [["о", "в", "о", "щ", null], [null, null, null, null, null], [null, null, null, null, null], [null, null, null, null, null], [null, null, null, null, null]], [["б", null, "л", null, null], [null, null, null, null, null], [null, null, null, null, null], [null, null, null, null, null], [null, null, null, null, null]], [[null, null, "о", null, null], [null, null, null, null, null], [null, null, null, null, null], [null, null, null, null, null], [null, null, null, null, null]]];
+
+        // Function to create cubes for non-null values
+        function createCubes() {
+            // Create material for cube
+            const materials = [
+                new THREE.MeshStandardMaterial({ color: 0xff4444 }), // а
+                new THREE.MeshStandardMaterial({ color: 0x44ff44 }), // б
+                new THREE.MeshStandardMaterial({ color: 0x4444ff }), // в
+                new THREE.MeshStandardMaterial({ color: 0xffff44 }), // г
+                new THREE.MeshStandardMaterial({ color: 0xff44ff }), // д
+                new THREE.MeshStandardMaterial({ color: 0x44ffff }), // е
+                new THREE.MeshStandardMaterial({ color: 0xffa500 }), // ж
+                new THREE.MeshStandardMaterial({ color: 0x008800 })  // з
+            ];
+            
+            const letterToMaterialIndex = {
+                'а': 0,
+                'б': 1,
+                'в': 2,
+                'г': 3,
+                'д': 4,
+                'е': 5,
+                'ж': 6,
+                'з': 7,
+                'и': 0,
+                'й': 1,
+                'к': 2,
+                'л': 3,
+                'м': 4,
+                'н': 5,
+                'о': 6,
+                'п': 7,
+                'р': 0,
+                'с': 1,
+                'т': 2,
+                'у': 3,
+                'ф': 4,
+                'х': 5,
+                'ц': 6,
+                'ч': 7,
+                'ш': 0,
+                'щ': 1,
+                'ъ': 2,
+                'ы': 3,
+                'ь': 4,
+                'э': 5,
+                'ю': 6,
+                'я': 7
+            };
+            
+            const geometry = new THREE.BoxGeometry(0.8, 0.8, 0.8);
+            
+            // Create a cube for each non-null value
+            for (let x = 0; x < inputData.length; x++) {
+                for (let y = 0; y < inputData[x].length; y++) {
+                    for (let z = 0; z < inputData[x][y].length; z++) {
+                        const value = inputData[x][y][z];
+                        if (value !== null) {
+                            const materialIndex = letterToMaterialIndex[value] || 0;
+                            const material = materials[materialIndex];
+                            const cube = new THREE.Mesh(geometry, material);
+        
+                            let posx = y-2;
+                            let posy = z;
+                            let posz = x-2;
+                            // Position the cube
+                            cube.position.set(posx, posy, posz);
+                            
+                            // Add to scene
+                            scene.add(cube);
+                            
+                            // Add letter as text
+                            addTextToPosition(value, posx, posy, posz);
+                        }
+                    }
+                }
+            }
+        }
+
+        function transliterate(text) {
+            const cyrillicToLatin = {
+                'а': 'a', 'б': 'b', 'в': 'v', 'г': 'g', 'д': 'd', 'е': 'e', 'ё': 'yo', 
+                'ж': 'zh', 'з': 'z', 'и': 'i', 'й': 'y', 'к': 'k', 'л': 'l', 'м': 'm', 
+                'н': 'n', 'о': 'o', 'п': 'p', 'р': 'r', 'с': 's', 'т': 't', 'у': 'u', 
+                'ф': 'f', 'х': 'h', 'ц': 'ts', 'ч': 'ch', 'ш': 'sh', 'щ': 'sch', 
+                'ъ': '', 'ы': 'y', 'ь': '', 'э': 'e', 'ю': 'yu', 'я': 'ya'
+            };
+        
+            return text.split('').map(char => cyrillicToLatin[char.toLowerCase()] || char).join('');
+        }
+        // Function to add text at a position (called when font is loaded)
+        function addTextToPosition(text, x, y, z) {
+            // Create temporary placeholder sphere for text
+            const sphereGeom = new THREE.SphereGeometry(0.15, 8, 8);
+            const sphereMat = new THREE.MeshBasicMaterial({ color: 0xFFFFFF });
+            const sphere = new THREE.Mesh(sphereGeom, sphereMat);
+            sphere.position.set(x, y, z);
+            scene.add(sphere);
+            
+            // Load font asynchronously
+            const fontLoader = new FontLoader();
+            fontLoader.load('https://unpkg.com/three@0.159.0/examples/fonts/helvetiker_regular.typeface.json', function(font) {
+                scene.remove(sphere); // Remove placeholder
+                
+                // Create text geometry
+                const textGeometry = new TextGeometry(transliterate(text), {
+                    font: font,
+                    size: 0.35,
+                    height: 0.05
+                });
+                
+                // Center text
+                textGeometry.computeBoundingBox();
+                const textWidth = textGeometry.boundingBox.max.x - textGeometry.boundingBox.min.x;
+                const textHeight = textGeometry.boundingBox.max.y - textGeometry.boundingBox.min.y;
+                
+                const textMaterial = new THREE.MeshBasicMaterial({ color: 0xFFFFFF });
+                const textMesh = new THREE.Mesh(textGeometry, textMaterial);
+                
+                // Position text on cube
+                textMesh.position.set(
+                    x - textWidth / 2, 
+                    y - textHeight / 2, 
+                    z + 0.41 // Slightly in front of the cube
+                );
+                
+                scene.add(textMesh);
+            });
+        }
+
+        // Initial creation of cubes
+        createCubes();
+
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        // Animation loop
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update();
+            renderer.render(scene, camera);
+        }
+        
+        animate();
+    </script>
+</body>
+</html>
