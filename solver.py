@@ -68,6 +68,15 @@ class Solver:
                             
             self.connections = map 
     
+    def load(words):
+        solver = Solver([])
+        solver.words = words
+        solver.init_connections(words)
+        with open('solver.json', 'r', encoding='utf-8') as file:
+            stats = json.load(file)
+            solver.stats = stats
+            return solver
+        
     def save(self):
         try:
             with open('solver.json', 'w', encoding='utf-8') as file:
@@ -77,9 +86,13 @@ class Solver:
 
 if __name__ == "__main__":
     from words import words as WORDS
-    solver = Solver(WORDS)
-    w1 = WORDS[0]
-    w2 = WORDS[1]
-    print(w1, w2, solver.calculate_common(w1, w2))
-    print(solver.stats)
-    solver.save()
+    #solver = Solver(WORDS)
+    #w1 = WORDS[0]
+    #w2 = WORDS[1]
+    #print(w1, w2, solver.calculate_common(w1, w2))
+    #print(solver.stats)
+    #solver.save()
+
+    solver2 = Solver.load(WORDS)
+    print(solver2.stats)
+    assert(len(solver2.stats) == len(WORDS))
