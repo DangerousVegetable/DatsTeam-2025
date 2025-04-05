@@ -151,7 +151,10 @@ class Floors:
         self.game = Game(size[0], size[1], size[2])
         self.prev_level = -1
 
-    def can_place(self, word: Word, solver: Solver):
+    def can_place(self, word: Word, solver: Solver, used):
+        if not self.game.can_build(word):
+            return (False, [])
+
         if self.prev_level < 0:
             return (True, [])
         #pos = word.pos[:2]
@@ -169,7 +172,7 @@ class Floors:
                 continue
             con = solver.connections.get(b, {}).get(a, {}).get(dist-1, [])
             for id, shift in con:
-                if id in ids:
+                if id in ids or id in used:
                     continue
                 v = Word(solver.words[id], id, Vec(pos_2d[0], pos_2d[1], word.pos[2]+shift), 2)
                 res = self.game.can_build(v)
@@ -183,18 +186,16 @@ class Floors:
             return (True, vert[:2])
         return (False, [])
     
-    def place(self, word: Word, solver: Solver):
-        res, vert = self.can_place(word, solver)
+    def place(self, word: Word, solver: Solver, used):
+        res, vert = self.can_place(word, solver, used)
 
-        used = set()
         if res:
             for v in vert:
                 res = self.game.build_word(v)
                 assert(res)
                 used.add(v.id)
-            self.game.forced_place(word)
+            assert(self.game.build_word(word))
             used.add(word.id)
-        return used
         
 
 # Какую-то ?#!.@ пишу
@@ -352,7 +353,7 @@ class Model:
         coeff = [random.choice(pair) for pair in zip(m1.coeff, m2.coeff)]
         return Model(coeff)
 
-    def build_floor(self, used, solver: Solver, floors: Floors, floor_num):
+    def build_floor(self, used, solver: Solver, floors: Floors, floor_num, built_limit = 10000):
         best = None
         place_word = None
         floor = Game2d((floors.game.x, floors.game.y))
@@ -370,7 +371,7 @@ class Model:
                             res, inter = floor.can_place(pword)
                             # Если слово можно поставить, то считаем все параметры с коэффицентами
                             if res:
-                                res, vert = floors.can_place(pword, solver)
+                                res, vert = floors.can_place(pword, solver, used)
                                 if res:
                                     score = 0
                                     score += floor.word_score(pword, solver) * self.coeff[0]
@@ -382,18 +383,16 @@ class Model:
                                     if not best or score > best:
                                         best = score
                                         place_word = pword
-            if best and built < 10:
+            if best and built < built_limit:
                 res = floor.place(place_word)
                 used.add(place_word.id)
                 assert(res)
-                ids = floors.place(place_word, solver)
-                for id in ids:
-                    used.add(id)
+                floors.place(place_word, solver, used)
 
                 best = None
                 place_word = None
                 built += 1
-                print(floor.board_str())
+                #print(floor.board_str())
                 #print(floors.game.words)
             else:
                 if built != 0:
@@ -401,7 +400,7 @@ class Model:
                 return built
 
     # Принимает на вход Solver, играет игру и возвращает на выход итоговый score
-    def get_score(self, solver: Solver):
+    def get_score(self, solver: Solver, built_limit = 1000):
         size_x = 30
         size_y = 30
         size_z = 30
@@ -410,6 +409,6 @@ class Model:
         floors = Floors((size_x, size_y, size_z))
         for floor_num in range(0, size_z):
             print(f"Building floor {floor_num}")
-            self.build_floor(used, solver, floors, floor_num)
+            self.build_floor(used, solver, floors, floor_num, built_limit)
         return floors.game
         
