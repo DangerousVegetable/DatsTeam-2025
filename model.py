@@ -32,7 +32,7 @@ class Game:
         self.z = z
 
         self.board = [[[None for _ in range(self.z)] for _ in range(self.y)] for _ in range(self.x)]
-        self.used_words = []
+        self.words = []
 
     def in_bounds(self, pos):
         x,y,z = pos
@@ -47,9 +47,7 @@ class Game:
     def can_build(self, word: Word):
         match = False
         total_matches = 0
-        # ________TRASH ALERT_________
         pos = copy.copy(word.pos) 
-        # ________TRASH ALERT_________
         
         pos -= DIR[word.dir]
         if (self.get_letter(pos)):
@@ -79,21 +77,118 @@ class Game:
         if self.get_letter(pos):
             return False
         
-        # TODO: проверка на 0 этаж
-        # TODO: если этаж не 0, то >= 2 пересечения
         return True
 
     def build_word(self, word: Word):
         if not (self.can_build(word)):
             return False
         pos = word.pos
-        #print(pos)
         for letter in word.word:
             x,y,z = pos
             self.board[x][y][z] = letter
             pos += DIR[word.dir]
+        self.words.append(word)
         return True
         
+class Game2d:
+    def __init__(self, size = (30, 30)):
+        self.size = size
+        self.words = []
+        self.board = [[None for _ in range(self.size[1])] for _ in range(self.size[0])]
+    
+    def in_bounds(self, pos):
+        x,y = pos
+        return x >= 0 and x < self.size[0] and y >= 0 and y < self.size[1]
+    
+    def get_letter(self, pos):
+        if self.in_bounds(pos):
+            x,y = pos
+            return self.board[x][y]
+        return None
+    
+    def can_place(self, word: Word):
+        pos = word.pos.copy()
+        pos -= DIR[word.dir]
+
+        matches = 0
+        if self.get_letter(pos[:2]):
+            return (False, 0)
+        
+        for letter in word.word:
+            pos += DIR[word.dir]
+            cur_letter = self.get_letter(pos[:2])
+            if letter == cur_letter:
+                matches += 1
+                continue
+            elif cur_letter:
+                return (False, 0)
+            for adj in ADJ[word.dir]:
+                adj_pos = pos+adj
+                if self.get_letter(adj_pos[:2]):
+                    return (False, 0)
+
+        pos += DIR[word.dir]
+        if self.get_letter(pos[:2]):
+            return (False, 0)
+        
+        return (True, matches)
+    
+    def place(self, word: Word):
+        result, matches = self.can_place(word)
+        if result:
+            pos = word.pos.copy()
+            for letter in word.word:
+                x,y,_ = pos
+                self.board[x][y] = letter
+                pos += DIR[word.dir]
+            return True
+        return False
+
+    def board_str(self):
+        s = ""
+        for y in reversed(range(self.size[1])):
+            for x in range(self.size[0]):
+                c = self.get_letter((x, y))
+                c = ' ' if not c else c
+                s += c + ' '
+            s += '\n'
+        return s
+
+
+class Solver:
+    def __init__(self, words):
+        self.words = words
+        # Init connections
+        self.init_connections(words)
+
+
+    def write_map_to_file(self, map_data, file_name):
+        try:
+            with open(file_name, 'w', encoding='utf-8') as file:
+                json.dump(map_data, file, indent=4, ensure_ascii=False)
+            print(f"Map data has been written to {file_name}")
+        except Exception as e:
+            print(f"Error writing map to file: {e}")
+
+    def init_connections(self, words):
+            map = {}
+            
+            for id, word in enumerate(words):
+                for index, letter in enumerate(word):
+                    if not letter in map:
+                        map[letter] = {}
+                    counter = 2
+                    while index + counter < len(word):
+                        ending_letter = word[index + counter]
+                        if not ending_letter in map[letter]:
+                            map[letter][ending_letter] = {}
+                        if not (counter - 1) in map[letter][ending_letter]:
+                            map[letter][ending_letter][counter - 1] = [id]
+                        else:
+                            map[letter][ending_letter][counter - 1].append(id)
+                        counter += 1
+                            
+            self.connections = map             
         
 class Model:
     def __init__(self, coeff):
@@ -110,6 +205,7 @@ class Model:
 
         # coeff[0] = розовые слова
         # coeff[1] = длина слова
+        # coeff[2] = количество пересечений
         self.coeff = coeff
         self.game = Game()
 
@@ -137,31 +233,3 @@ class Model:
         
         game = []
         return 0.
-
-    def write_map_to_file(self, map_data, file_name):
-        try:
-            with open(file_name, 'w', encoding='utf-8') as file:
-                json.dump(map_data, file, indent=4, ensure_ascii=False)
-            print(f"Map data has been written to {file_name}")
-        except Exception as e:
-            print(f"Error writing map to file: {e}")
-
-    def create_array(self, words):
-            map = {}
-            
-            for id, word in enumerate(words):
-                for index, letter in enumerate(word):
-                    if not letter in map:
-                        map[letter] = {}
-                    counter = 2
-                    while index + counter < len(word):
-                        ending_letter = word[index + counter]
-                        if not ending_letter in map[letter]:
-                            map[letter][ending_letter] = {}
-                        if not (counter - 1) in map[letter][ending_letter]:
-                            map[letter][ending_letter][counter - 1] = [id]
-                        else:
-                            map[letter][ending_letter][counter - 1].append(id)
-                        counter += 1
-                            
-            self.write_map_to_file(map, 'data.json')             
