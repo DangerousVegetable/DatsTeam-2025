@@ -141,6 +141,7 @@ class Game2d:
                 x,y,_ = pos
                 self.board[x][y] = letter
                 pos += DIR[word.dir]
+            self.words.append(word)
             return True
         return False
 
@@ -153,42 +154,7 @@ class Game2d:
                 s += c + ' '
             s += '\n'
         return s
-
-
-class Solver:
-    def __init__(self, words):
-        self.words = words
-        # Init connections
-        self.init_connections(words)
-
-
-    def write_map_to_file(self, map_data, file_name):
-        try:
-            with open(file_name, 'w', encoding='utf-8') as file:
-                json.dump(map_data, file, indent=4, ensure_ascii=False)
-            print(f"Map data has been written to {file_name}")
-        except Exception as e:
-            print(f"Error writing map to file: {e}")
-
-    def init_connections(self, words):
-            map = {}
             
-            for id, word in enumerate(words):
-                for index, letter in enumerate(word):
-                    if not letter in map:
-                        map[letter] = {}
-                    counter = 2
-                    while index + counter < len(word):
-                        ending_letter = word[index + counter]
-                        if not ending_letter in map[letter]:
-                            map[letter][ending_letter] = {}
-                        if not (counter - 1) in map[letter][ending_letter]:
-                            map[letter][ending_letter][counter - 1] = [id]
-                        else:
-                            map[letter][ending_letter][counter - 1].append(id)
-                        counter += 1
-                            
-            self.connections = map             
         
 class Model:
     def __init__(self, coeff):

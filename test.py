@@ -1,6 +1,7 @@
 import numpy as np
 import json
-from model import Game, Word, Game2d
+from model import Game, Word, Game2d, Solver
+from words import words as WORDS
 
 def test_game():
     game = Game(5, 5, 5)
@@ -31,5 +32,7 @@ def test_game2d():
     game.place(Word('опера', 0, np.array([2, 0, 0]), 1))
     game.place(Word('опера', 0, np.array([0, 2, 0]), 0))
     print(game.board_str())
+    solver = Solver(WORDS)
+    solver.save()
 
 test_game2d()
