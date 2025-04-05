@@ -77,7 +77,7 @@ class Solver:
 
 if __name__ == "__main__":
     from words import words as WORDS
-    solver = Solver(WORDS[:100])
+    solver = Solver(WORDS)
     w1 = WORDS[0]
     w2 = WORDS[1]
     print(w1, w2, solver.calculate_common(w1, w2))

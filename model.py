@@ -153,8 +153,7 @@ class Game2d:
                 c = ' ' if not c else c
                 s += c + ' '
             s += '\n'
-        return s
-            
+        return s            
         
 class Model:
     def __init__(self, coeff):
