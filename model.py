@@ -1,7 +1,6 @@
 import random
 import math
 import json
-import numpy as np
 import copy
 from solver import Solver
 from words import words
@@ -9,9 +8,55 @@ from words import words
 def clamp(value, min_value, max_value):
     return max(min(value, max_value), min_value)
 
-DIRX = np.array([1, 0, 0])
-DIRY = np.array([0, 1, 0])
-DIRZ = np.array([0, 0, 1])
+class Vec:
+    def __init__(self, *components):
+        self.components = list(components)
+    
+    def __add__(self, other):
+        if len(self) != len(other):
+            raise ValueError("Vectors must be of the same length to add")
+        return Vec(*[a + b for a, b in zip(self.components, other.components)])
+    
+    def __sub__(self, other):
+        if len(self) != len(other):
+            raise ValueError("Vectors must be of the same length to subtract")
+        return Vec(*[a - b for a, b in zip(self.components, other.components)])
+    
+    def __neg__(self):
+        return Vec(*[-a for a in self.components])
+
+    def __mul__(self, scalar):
+        if not isinstance(scalar, (int, float)):
+            raise TypeError("Can only multiply by a scalar (int or float)")
+        return Vec(*[a * scalar for a in self.components])
+    
+    def __rmul__(self, scalar):
+        return self.__mul__(scalar)
+    
+    def __iter__(self):
+        return iter(self.components)
+    
+    def __len__(self):
+        return len(self.components)
+    
+    def __repr__(self):
+        return f"Vec({', '.join(map(str, self.components))})"
+    
+    def __eq__(self, other):
+        return self.components == other.components
+    
+    def __getitem__(self, index):
+        return self.components[index]
+
+    def __setitem__(self, index, value):
+        self.components[index] = value
+        
+    def copy(self):
+        return Vec(*self.components)
+
+DIRX = Vec(1, 0, 0)
+DIRY = Vec(0, 1, 0)
+DIRZ = Vec(0, 0, 1)
 DIR = [DIRX, DIRY, DIRZ]
 ADJX = [-DIRY, DIRY, -DIRZ, DIRZ]
 ADJY = [-DIRX, DIRX, -DIRZ, DIRZ]
@@ -19,7 +64,7 @@ ADJZ = [-DIRX, DIRX, -DIRY, DIRY]
 ADJ = [ADJX, ADJY, ADJZ]
 
 class Word:
-    def __init__(self, word: str, word_id = 0, pos = np.array([10, 10, 0]), direction = 0):
+    def __init__(self, word: str, word_id = 0, pos = Vec(10, 10, 0), direction = 0):
         self.dir = direction
         self.id = word_id
         self.pos = pos
@@ -257,11 +302,11 @@ class Model:
             for id, word in enumerate(solver.words):
                 if id in used:
                     continue
-                print(f"word {id}")
+                #print(f"word {id}")
                 for dir in [0,1]:
                     for x in range(size_x):
                         for y in range(size_y):
-                            pword = Word(word, id, np.array([x, y, 0]), dir)
+                            pword = Word(word, id, Vec(x, y, 0), dir)
                             res, inter = game.can_place(pword)
                             # Если слово можно поставить, то считаем все параметры с коэффицентами
                             if res and (len(used) == 0 or inter > 0):

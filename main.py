@@ -1,7 +1,8 @@
 import copy
 import random
 from model import Model
-from words import words
+from solver import Solver
+from words import words as WORDS
 
 class Genetics:
     def __init__(self, models_per_round, top_models, num_epoch):
@@ -14,7 +15,7 @@ class Genetics:
 
     # coeff_range - рэнджи коэффицентов (откуда до куда меняются, например -2 < x < 2)
     # models - стартовые модели
-    def train(self, words, coeff_range, models=[]):
+    def train(self, solver, coeff_range, models=[]):
         models = models
         for _ in range(self.models_per_round - len(models)):
             models.append(Model.random(coeff_range))
@@ -22,9 +23,9 @@ class Genetics:
         print(models)
 
         for epoch in range(self.num_epoch):
-            scores = [(model.get_score(words), model) for model in models]
+            scores = [(model.get_score(solver).score(), model) for model in models]
             # Массив пар 
-            best = sorted(scores, key=lambda score: score[0])
+            best = sorted(scores, key=lambda score: score[0], reverse=True)
             best_models = [model[1] for model in best[:self.top_models]]
             # Количество мутированных моделей
             mutated_models_num = (self.models_per_round - self.top_models)//2
@@ -42,10 +43,31 @@ class Genetics:
             best_models.extend(mutated_models)
             best_models.extend(crossed_models)
 
-            print(f"Epoch: {epoch}, best_model: {best_models[0]}")
+            print(f"Epoch: {epoch}, best_model: {best_models[0]}, best_score: {scores[0][0]}")
             models = best_models
+        
+        return models[:self.top_models]
+
+def train(words, models=[]):
+    solver = Solver(words)
+    gen = Genetics(10, 3, 4)
+    best = gen.train(solver, coeff_range=[(-1, 1), (-1, 1), (-1, 1), (-0.5, 0.5), (-0.5, 0.5)], models=models)[0]
+    return best
+
+def play_and_save(model, solver):
+    game = model.get_score(solver)
+    board = game.board_str()
+    with open("board.txt", 'w') as f:
+        f.write(board)
+        f.write(str(best))
 
 if __name__ == '__main__':
-    gen = Genetics(30, 10, 100)
-    gen.train([], coeff_range=[(-2, 2), (-2, 2)])
+    solver = Solver(WORDS[:50])
+    models = [
+        Model([-0.35653157896755705, 0.012437856571482664, 0.6395248802370185, -0.3339694249653534, 0.40183299512230386]),
+        Model([-0.35653157896755705, 0.13024319608070142, 0.6395248802370185, -0.3339694249653534, 0.5]),
+        Model([0.5, 0., 1, 0.2, 0.2])]
+    best = models[0]
+    #play_and_save(best, solver)
+    #best = train(WORDS[500:550], models)
 
