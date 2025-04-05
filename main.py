@@ -1,5 +1,6 @@
 import copy
 import random
+import json
 from model import Model
 from solver import Solver
 from words import words as WORDS
@@ -60,14 +61,27 @@ def play_and_save(model, solver):
     with open("board.txt", 'w') as f:
         f.write(board)
         f.write(str(best))
+    return game
 
 if __name__ == '__main__':
-    solver = Solver(WORDS[:50])
+    solver = Solver(WORDS[0:100])
     models = [
         Model([-0.35653157896755705, 0.012437856571482664, 0.6395248802370185, -0.3339694249653534, 0.40183299512230386]),
         Model([-0.35653157896755705, 0.13024319608070142, 0.6395248802370185, -0.3339694249653534, 0.5]),
         Model([0.5, 0., 1, 0.2, 0.2])]
     best = models[0]
+    #game = play_and_save(best, solver)
+    game = best.get_score(solver)
+    for word in game.words:
+        print(word.id, word.pos, word.dir)
+    with open('tower.json', 'w') as f:
+        json.dump(game.board, f, ensure_ascii=False)
+    # id    pos      dir
+    # 8  [0, 0, 5]  X 2
+    # 9  [4, 0, 11] Z 1
+    # 36 [6, 0, 7] Z 1
+    # 30 [3, 0, 0] X 2
+
     #play_and_save(best, solver)
     #best = train(WORDS[500:550], models)
 

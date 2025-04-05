@@ -61,9 +61,9 @@ class Solver:
                         if not ending_letter in map[letter]:
                             map[letter][ending_letter] = {}
                         if not (counter - 1) in map[letter][ending_letter]:
-                            map[letter][ending_letter][counter - 1] = [id]
+                            map[letter][ending_letter][counter - 1] = [(id, index)]
                         else:
-                            map[letter][ending_letter][counter - 1].append(id)
+                            map[letter][ending_letter][counter - 1].append((id, index))
                         counter += 1
                             
             self.connections = map 

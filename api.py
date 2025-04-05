@@ -1,6 +1,7 @@
 import requests
 import datetime
 from time import sleep
+import json
 
 from secret import TOKEN 
 
@@ -83,11 +84,12 @@ class Scheduler:
     def operate(self):
         # Вызов функции которая выдает нужные слова
         # words = create_board()
-        words = [{}]
+        words = []
         data = self.api.build(words)
         while data == None:
-            self.nextTurnSec = self.api.get_words().nextTurnSec
-            sleep(self.nextTurnSec)
+            # self.nextTurnSec = self.api.get_words().nextTurnSec
+            # sleep(self.nextTurnSec)
+            sleep(1)
             data = self.api.build(words)
 
         self.nextTurnSec = self.api.get_words().nextTurnSec
@@ -95,9 +97,39 @@ class Scheduler:
         self.operate()
 
     def send_request(self):
-        data = self.api.get_words()
+        words = [
+            {
+                'id': 8,
+                'dir': 2,
+                'pos': [0, 0, 5]
+            },
+            {
+                'id': 9,
+                'dir': 1,
+                'pos': [4, 0, 11]
+            },
+            {
+                'id': 36,
+                'dir': 1,
+                'pos': [6, 0, 7]
+            },
+            {
+                'id': 30,
+                'dir': 2,
+                'pos': [3, 0, 0]
+            }
+        ]
+        data = self.api.build(words)
+        self.save(data, 'build')
         print(data)
+
+    def save(self, data, name):
+        try:
+            with open(f'{name}.json', 'w', encoding='utf-8') as file:
+                json.dump(data, file, indent=2, ensure_ascii=False)
+        except Exception as e:
+            print(f"Error writing map to file: {e}")
 
 app = Scheduler()
 
-Scheduler(test=True).send_request()
+Scheduler().send_request()

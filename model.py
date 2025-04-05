@@ -56,7 +56,7 @@ class Vec:
 
 DIRX = Vec(1, 0, 0)
 DIRY = Vec(0, 1, 0)
-DIRZ = Vec(0, 0, 1)
+DIRZ = Vec(0, 0, -1)
 DIR = [DIRX, DIRY, DIRZ]
 ADJX = [-DIRY, DIRY, -DIRZ, DIRZ]
 ADJY = [-DIRX, DIRX, -DIRZ, DIRZ]
@@ -92,8 +92,11 @@ class Game:
     def can_build(self, word: Word):
         match = False
         total_matches = 0
-        pos = copy.copy(word.pos) 
         
+        if not self.in_bounds(word.pos) or not self.in_bounds((word.pos + (len(word.word)-1)*DIR[word.dir])):
+            return False
+
+        pos = word.pos.copy() 
         pos -= DIR[word.dir]
         if (self.get_letter(pos)):
             return False
@@ -127,13 +130,75 @@ class Game:
     def build_word(self, word: Word):
         if not (self.can_build(word)):
             return False
-        pos = word.pos
+        pos = word.pos.copy()
         for letter in word.word:
             x,y,z = pos
             self.board[x][y][z] = letter
             pos += DIR[word.dir]
         self.words.append(word)
         return True
+    
+    def forced_place(self, word: Word):
+        pos = word.pos
+        for letter in word.word:
+            x,y,z = pos
+            self.board[x][y][z] = letter
+            pos += DIR[word.dir]
+        self.words.append(word)
+
+class Floors:
+    def __init__(self, size = (30, 30, 100)):
+        self.game = Game(size[0], size[1], size[2])
+        self.prev_level = -1
+
+    def can_place(self, word: Word, solver: Solver):
+        if self.prev_level < 0:
+            return (True, [])
+        #pos = word.pos[:2]
+        dist = word.pos[2] - self.prev_level
+
+        ids = set()
+        vert = []
+        i = 0
+        while i < len(word.word):
+            b = word.word[i]
+            pos_2d = word.pos + i*DIR[word.dir]
+            a = self.game.get_letter(Vec(pos_2d[0], pos_2d[1], self.prev_level))
+            if not a:
+                i += 1
+                continue
+            con = solver.connections.get(b, {}).get(a, {}).get(dist-1, [])
+            for id, shift in con:
+                if id in ids:
+                    continue
+                v = Word(solver.words[id], id, Vec(pos_2d[0], pos_2d[1], word.pos[2]+shift), 2)
+                res = self.game.can_build(v)
+                if res:
+                    vert.append(v)
+                    ids.add(id)
+                    i += 1
+                    break
+            i += 1
+        if len(vert) > 1:
+            return (True, vert[:2])
+        return (False, [])
+    
+    def place(self, word: Word, solver: Solver):
+        res, vert = self.can_place(word, solver)
+
+        used = set()
+        if res:
+            for v in vert:
+                res = self.game.build_word(v)
+                assert(res)
+                used.add(v.id)
+            self.game.forced_place(word)
+            used.add(word.id)
+        return used
+        
+
+# Какую-то ?#!.@ пишу
+# че то придумал? лайк
 
 # Класс для 2д игры (супер-эрудит)
 class Game2d:
@@ -154,7 +219,7 @@ class Game2d:
     
     def can_place(self, word: Word):
         pos = word.pos.copy()
-        if not self.in_bounds(pos[:2]) or not self.in_bounds((pos + len(word.word)*DIR[word.dir])[:2]):
+        if not self.in_bounds(pos[:2]) or not self.in_bounds((pos + (len(word.word)-1)*DIR[word.dir])[:2]):
             return (False, 0)
 
         pos -= DIR[word.dir]
@@ -247,7 +312,6 @@ class Game2d:
         dy = max_y - min_y
         return (total_length + len(self.words))*(min(dx, dy) / max(dx, dy))
 
-        
 class Model:
     def __init__(self, coeff):
         # Количество связывающих слов (розовые слова) 
@@ -288,42 +352,64 @@ class Model:
         coeff = [random.choice(pair) for pair in zip(m1.coeff, m2.coeff)]
         return Model(coeff)
 
-    # Принимает на вход Solver, играет игру и возвращает на выход итоговый score
-    def get_score(self, solver: Solver):
-        size_x = 30
-        size_y = 30
-        game = Game2d((size_x, size_y))
-        used = set()
-        
+    def build_floor(self, used, solver: Solver, floors: Floors, floor_num):
         best = None
         place_word = None
+        floor = Game2d((floors.game.x, floors.game.y))
+
+        built = 0
         while True:
             print(f"Step {len(used)}")
             for id, word in enumerate(solver.words):
                 if id in used:
                     continue
-                #print(f"word {id}")
                 for dir in [0,1]:
-                    for x in range(size_x):
-                        for y in range(size_y):
-                            pword = Word(word, id, Vec(x, y, 0), dir)
-                            res, inter = game.can_place(pword)
+                    for x in range(floors.game.x):
+                        for y in range(floors.game.y):
+                            pword = Word(word, id, Vec(x, y, floor_num), dir)
+                            res, inter = floor.can_place(pword)
                             # Если слово можно поставить, то считаем все параметры с коэффицентами
-                            if res and (len(used) == 0 or inter > 0):
-                                score = 0
-                                score += game.word_score(pword, solver) * self.coeff[0]
-                                score += len(word) * self.coeff[1]
-                                score += inter * self.coeff[2]
-                                score += solver.stats[id][0] * self.coeff[3]
-                                score += solver.stats[id][1] * self.coeff[4]
+                            if res:
+                                res, vert = floors.can_place(pword, solver)
+                                if res:
+                                    score = 0
+                                    score += floor.word_score(pword, solver) * self.coeff[0]
+                                    score += len(word) * self.coeff[1]
+                                    score += inter * self.coeff[2]
+                                    score += solver.stats[id][0] * self.coeff[3]
+                                    score += solver.stats[id][1] * self.coeff[4]
 
-                                if not best or score > best:
-                                    best = score
-                                    place_word = pword
-            if best:
-                game.place(place_word)
+                                    if not best or score > best:
+                                        best = score
+                                        place_word = pword
+            if best and built < 10:
+                res = floor.place(place_word)
                 used.add(place_word.id)
+                assert(res)
+                ids = floors.place(place_word, solver)
+                for id in ids:
+                    used.add(id)
+
                 best = None
                 place_word = None
+                built += 1
+                print(floor.board_str())
+                #print(floors.game.words)
             else:
-                return game
+                if built != 0:
+                    floors.prev_level = floor_num
+                return built
+
+    # Принимает на вход Solver, играет игру и возвращает на выход итоговый score
+    def get_score(self, solver: Solver):
+        size_x = 30
+        size_y = 30
+        size_z = 30
+
+        used = set()
+        floors = Floors((size_x, size_y, size_z))
+        for floor_num in range(0, size_z):
+            print(f"Building floor {floor_num}")
+            self.build_floor(used, solver, floors, floor_num)
+        return floors.game
+        
